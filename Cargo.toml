@@ -1,0 +1,3 @@
+[workspace]
+members = ["src/core", "src/comms", "src/hacker", "src/civilian", "src/cli"]
+resolver = "2"

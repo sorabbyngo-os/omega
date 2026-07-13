@@ -1,0 +1,7 @@
+[package]
+name = "omega-civilian"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+omega-core = { path = "../core" }
+anyhow = "1.0"

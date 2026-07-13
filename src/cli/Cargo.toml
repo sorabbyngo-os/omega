@@ -1,0 +1,16 @@
+[package]
+name = "omega-cli"
+version = "0.1.0"
+edition = "2021"
+[[bin]]
+name = "omega"
+path = "src/main.rs"
+[dependencies]
+omega-core = { path = "../core" }
+omega-comms = { path = "../comms" }
+omega-hacker = { path = "../hacker" }
+omega-civilian = { path = "../civilian" }
+clap = { version = "4.0", features = ["derive"] }
+colored = "2.0"
+anyhow = "1.0"
+chrono = "0.4"
