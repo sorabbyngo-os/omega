@@ -40,6 +40,11 @@ enum Commands {
     Clean,
     /// Show version
     Version,
+    /// Generate QR code from text
+    Qr {
+        /// Text to encode in QR code
+        text: String,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -58,16 +63,24 @@ fn main() -> anyhow::Result<()> {
             println!("  File: {}", file.green());
             println!("  To: {}", to.cyan());
             
-            // Simulate sending
-            use std::fs;
-            if let Ok(metadata) = fs::metadata(&file) {
-                println!("  Size: {} bytes", metadata.len());
-            }
+            let data = std::fs::read(&file)?;
+            println!("  Size: {} bytes", data.len());
             
-            // Use comms module
             let comms = omega_comms::CommsManager::new();
-            let data = b"Test message";
-            comms.send(data)?;
+            comms.send(&data)?;
+            
+            // Generate QR code
+            println!("\n{}", " QR CODE FOR SCANNING ".bold().white().on_green());
+            let qr_transfer = omega_comms::qr::QRTransfer::new();
+            match qr_transfer.generate_terminal_qr(&data) {
+                Ok(qr_ascii) => {
+                    println!("\n{}", qr_ascii);
+                    println!("{}", "📱 Scan this QR code with your phone camera".yellow());
+                }
+                Err(e) => {
+                    println!("{}", format!("Could not generate QR: {}", e).red());
+                }
+            }
             
             println!("\n{}", "✓ Transfer complete".green());
         }
@@ -77,7 +90,13 @@ fn main() -> anyhow::Result<()> {
             
             let comms = omega_comms::CommsManager::new();
             let data = comms.receive()?;
-            std::fs::write(&output, data)?;
+            std::fs::write(&output, &data)?;
+            println!("  Received: {} bytes", data.len());
+            
+            if let Ok(text) = String::from_utf8(data.clone()) {
+                println!("\n{}", " Received Text ".bold().white().on_green());
+                println!("{}", text.cyan());
+            }
             
             println!("\n{}", "✓ Data received and saved".green());
         }
@@ -87,16 +106,29 @@ fn main() -> anyhow::Result<()> {
             println!("  Type: {}", payload_type.yellow());
             println!("  Output: {}", output.green());
             
-            use omega_hacker::payload::{PayloadGenerator, PayloadType as HackerPayloadType};
-            let generator = PayloadGenerator::new();
-            let payload_type_enum = match payload_type.as_str() {
-                "reverse_shell" => HackerPayloadType::ReverseShell,
-                "keylogger" => HackerPayloadType::Keylogger,
-                "meterpreter" => HackerPayloadType::Meterpreter,
-                _ => HackerPayloadType::ReverseShell,
+            use omega_hacker::payload::{PayloadGenerator, PayloadType};
+            let gen = PayloadGenerator::new();
+            let pt = match payload_type.as_str() {
+                "keylogger" => PayloadType::Keylogger,
+                "meterpreter" => PayloadType::Meterpreter,
+                _ => PayloadType::ReverseShell,
             };
-            let payload = generator.generate(payload_type_enum, &platform)?;
+            let payload = gen.generate(pt, &platform)?;
             std::fs::write(&output, &payload.data)?;
+            println!("  Size: {} bytes", payload.data.len());
+            
+            // Generate QR code for payload
+            println!("\n{}", " QR CODE FOR PAYLOAD ".bold().white().on_green());
+            let qr_transfer = omega_comms::qr::QRTransfer::new();
+            match qr_transfer.generate_terminal_qr(&payload.data) {
+                Ok(qr_ascii) => {
+                    println!("\n{}", qr_ascii);
+                    println!("{}", "📱 Scan this QR code to transfer the payload".yellow());
+                }
+                Err(e) => {
+                    println!("{}", format!("Could not generate QR: {}", e).red());
+                }
+            }
             
             println!("\n{}", "✓ Payload generated and saved".green());
         }
@@ -105,21 +137,20 @@ fn main() -> anyhow::Result<()> {
             use omega_core::mesh::{MeshNetwork, Node};
             let mut network = MeshNetwork::new();
             
-            // Add some nodes
             network.add_node(Node {
                 id: "node1".to_string(),
                 address: "192.168.1.10".to_string(),
-                last_seen: chrono::Utc::now().timestamp(),
+                last_seen: 0,
             });
             network.add_node(Node {
                 id: "node2".to_string(),
                 address: "192.168.1.20".to_string(),
-                last_seen: chrono::Utc::now().timestamp(),
+                last_seen: 0,
             });
             network.add_node(Node {
                 id: "node3".to_string(),
                 address: "192.168.1.30".to_string(),
-                last_seen: chrono::Utc::now().timestamp(),
+                last_seen: 0,
             });
             
             println!("  Nodes: {} active", network.nodes.len());
@@ -132,12 +163,26 @@ fn main() -> anyhow::Result<()> {
         Commands::Clean => {
             println!("{}", " OMEGA CLEAN ".bold().white().on_yellow());
             use omega_civilian::privacy::PrivacyCleaner;
-            let cleaner = PrivacyCleaner::new();
-            cleaner.wipe_traces()?;
+            PrivacyCleaner::new().wipe_traces()?;
             println!("\n{}", "✓ All traces removed".green());
         }
         Commands::Version => {
             println!("OMEGA v{}", env!("CARGO_PKG_VERSION"));
+        }
+        Commands::Qr { text } => {
+            println!("{}", " QR CODE GENERATOR ".bold().white().on_blue());
+            println!("  Text: {}", text.cyan());
+            
+            let qr_transfer = omega_comms::qr::QRTransfer::new();
+            match qr_transfer.generate_terminal_qr(text.as_bytes()) {
+                Ok(qr_ascii) => {
+                    println!("\n{}", qr_ascii);
+                    println!("\n{}", "📱 Scan this QR code with your phone camera".yellow());
+                }
+                Err(e) => {
+                    println!("{}", format!("Error generating QR: {}", e).red());
+                }
+            }
         }
     }
     Ok(())

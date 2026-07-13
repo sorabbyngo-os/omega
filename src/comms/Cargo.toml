@@ -7,3 +7,4 @@ omega-core = { path = "../core" }
 rand = "0.8"
 anyhow = "1.0"
 base64 = "0.21"
+qrcode = "0.13"

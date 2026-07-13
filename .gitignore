@@ -33,3 +33,4 @@ modules.order
 *.qcow2
 *~
 *.bak
+kernel/
